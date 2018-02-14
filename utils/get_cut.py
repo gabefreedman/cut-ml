@@ -15,10 +15,10 @@ class CutResults:
         with open(self._path, "r") as f:
             self._data = cPickle.load(f)
         
-    def get_data(self, n, random=False):
-        n_data = self._data['name']
+    def get_data(self, n, random=True):
+        n_data = len(self._data['name'])
         if random:
-            sel = np.random.randint(n_data, n)
+            sel = np.random.choice(n_data, n)
         else:
             sel = np.arange(n)
         filenames = [ self._data['name'][i] for i in sel]
@@ -36,14 +36,39 @@ class CutResults:
         labels_stack = np.hstack([ labels[:,i] for i in np.arange(n)])
         return data_stack, labels_stack
 
-    def get_data_learning(self, n, downsample = 0):
+    def get_data_learning(self, n_tod, n_sample, downsample = 0):
         train_ratio = 0.8
-        data_stack, labels_stack = self.get_data_transform(n, downsample)
-        split_index = int(len(labels_stack)*train_ratio)
-        X_train = data_stack[:split_index, :]
-        Y_train = labels_stack[:split_index]
-        X_test = data_stack[split_index:,:]
-        Y_test = labels_stack[split_index:]
+        data_stack, labels_stack = self.get_data_transform(n_tod, downsample)
+        # in order to have good training, sample equally from good and bad
+        good_ind = np.where(labels_stack==1)[0]
+        bad_ind = np.where(labels_stack==0)[0]
+
+        # sample evenly in both category
+        print '[INFO] Random sampling from good detectors, N=%d' % n_sample
+        good_sample = np.random.choice(good_ind, n_sample)
+        print '[INFO] Random sampling from bad detectors, N=%d' % n_sample
+        bad_sample = np.random.choice(bad_ind, n_sample)
+
+        # split index
+        print '[INFO] Splitting data into training set and testing set ...'
+        split_index = int(n_sample * train_ratio)
+        print '[INFO] Train: %d, \t Test: %d ' % (split_index, n_sample-split_index)
+        # combine index
+        train_ind = np.concatenate([good_sample[:split_index], bad_sample[:split_index]])
+        test_ind = np.concatenate([good_sample[split_index:], bad_sample[split_index:]])
+        # shuffle data order
+        print '[INFO] Shuffling data ...'
+        np.random.shuffle(train_ind)
+        np.random.shuffle(test_ind)
+
+        # generate training and test data
+        print '[INFO] Generating training data ...'
+        X_train = data_stack[train_ind, :]
+        Y_train = labels_stack[train_ind]
+        print '[INFO] Generating testing data ...'
+        X_test = data_stack[test_ind,:]
+        Y_test = labels_stack[test_ind]
+
         return X_train, Y_train, X_test, Y_test
         
 

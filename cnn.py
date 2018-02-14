@@ -3,7 +3,7 @@ from __future__ import print_function
 from matplotlib import pyplot as plt
 import keras
 from keras.models import Sequential
-from keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPooling2D
+from keras.layers import Conv2D, Dense, Dropout, Flatten, MaxPooling2D, GlobalMaxPooling2D
 from keras.utils import np_utils
 import numpy as np
 from utils.get_cut import *
@@ -12,10 +12,11 @@ np.random.seed(10)
 batch_size = 32 
 num_classes = 2
 epochs = 10
+n_samples = 5000
 
 # Retrieve data from api
 cr = CutResults("/home/yguan/data/mr3_pa2_s16_results.pickle")
-x_train, y_train, x_test, y_test = cr.get_data_learning(50, downsample=40)
+x_train, y_train, x_test, y_test = cr.get_data_learning(10, n_samples, downsample=40)
 
 unique, counts = np.unique(y_train, return_counts=True)
 print(dict(zip(unique, counts)))
@@ -25,7 +26,8 @@ print(dict(zip(unique, counts)))
 
 x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
-input_shape = (1, x_train.shape[1], 1)
+#input_shape = (1, x_train.shape[1], 1)
+input_shape = (1, None, 1) # test varaible input size
 
 # Conform to Conv2D input requirement last digit is channel
 x_train = x_train.reshape(x_train.shape[0], 1, x_train.shape[1], 1)
@@ -56,7 +58,8 @@ model.add(MaxPooling2D(pool_size=(1, 2)))
 
 model.add(Conv2D(128, (1, 10), activation='relu'))
 model.add(MaxPooling2D(pool_size=(1, 2)))
-model.add(Flatten())
+#model.add(Flatten())
+model.add(GlobalMaxPooling2D()) # try to fix the flatten problem with GlobalMaxPooling2D
 model.add(Dropout(0.25))
 
 model.add(Dense(1000, activation='relu'))
@@ -66,7 +69,6 @@ model.add(Dense(num_classes, activation='softmax'))
 model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adam(),
               metrics=['accuracy'])
-
 
 class AccuracyHistory(keras.callbacks.Callback):
     def on_train_begin(self, logs={}):
@@ -85,9 +87,10 @@ model.fit(x_train, y_train,
           callbacks=[history])
 score = model.evaluate(x_test, y_test, verbose=0)
 prediction = model.predict(np.array(x_test))
-print(prediction)
+print(np.hstack([prediction, y_test]))
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
+model.save('my_model.h5')
 plt.plot(range(1, 11), history.acc)
 plt.xlabel('Epochs')
 plt.ylabel('Accuracy')
