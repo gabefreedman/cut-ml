@@ -1,12 +1,15 @@
+from __future__ import print_function
 from keras.models import load_model
 from utils.get_cut import CutResults
 import numpy as np
 import keras
+np.random.seed(100)
 
-n_samples = 100
+n_samples = 5000
+n_tods = 10
 # Retrieve data from api
 cr = CutResults("/home/yguan/data/mr3_pa2_s16_results.pickle")
-x_train, y_train, x_test, y_test = cr.get_data_learning(1, n_samples, downsample=40)
+x_train, y_train, x_test, y_test = cr.get_data_learning(n_tods, n_samples, downsample=40)
 
 # Data transformation
 x_train = x_train.astype('float32')
@@ -30,10 +33,17 @@ print(x_test.shape[0], 'test samples')
 y_train = keras.utils.to_categorical(y_train, 2)
 y_test = keras.utils.to_categorical(y_test, 2)
 
-model = load_model("my_model.h5")
+model = load_model("100_model.h5")
+
+# since we are validating, combine tests and train
+x_test = np.vstack([x_train, x_test])
+y_test = np.vstack([y_train, y_test])
 
 prediction = model.predict(np.array(x_test))
 print(np.hstack([prediction, y_test]))
 
 # check the number of accurate guesses
-if prediction[i][1]>prediction[i][0]:
+correct = ((prediction[:,1] > prediction[:,0]) & (y_test[:,1] > y_test[:,0])) | ((prediction[:,1] < prediction[:,0]) & (y_test[:,1] < y_test[:, 0]))
+print('Number of correct:', np.count_nonzero(correct))
+print('Total:', prediction.shape[0])
+print('Accuracy:', float(np.count_nonzero(correct)*100.0)/prediction.shape[0])

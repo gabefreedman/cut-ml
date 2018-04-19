@@ -32,6 +32,7 @@ class CutResults:
         data_min_size = min([d.shape[1] for d in data])
         data_truncated = [d[:,:data_min_size] for d in data]
         data_stack = np.vstack(data_truncated)
+        # data_stack = np.vstack(data)
         # Transform labels
         labels_stack = np.hstack([ labels[:,i] for i in np.arange(n)])
         return data_stack, labels_stack
@@ -52,7 +53,7 @@ class CutResults:
         # split index
         print '[INFO] Splitting data into training set and testing set ...'
         split_index = int(n_sample * train_ratio)
-        print '[INFO] Train: %d, \t Test: %d ' % (split_index, n_sample-split_index)
+        print '[INFO] Train: %d, \t Test: %d ' % (split_index*2, n_sample*2-split_index*2)
         # combine index
         train_ind = np.concatenate([good_sample[:split_index], bad_sample[:split_index]])
         test_ind = np.concatenate([good_sample[split_index:], bad_sample[split_index:]])
@@ -70,9 +71,3 @@ class CutResults:
         Y_test = labels_stack[test_ind]
 
         return X_train, Y_train, X_test, Y_test
-        
-
-
-        
-            
-        
