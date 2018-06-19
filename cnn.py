@@ -12,8 +12,9 @@ np.random.seed(10)
 batch_size = 32 
 num_classes = 2
 epochs = 10
-n_samples = 5000
-n_tods = 10
+n_samples = 2000  # number of positive samples in dataset -> adjust
+                  # based on n_tods
+n_tods = 5
 downsample = 40
 n_repeat = 1 # number of repeats
 input_shape = (1, None, 1) # test varaible input size
@@ -21,7 +22,8 @@ input_shape = (1, None, 1) # test varaible input size
 # Retrieve data from api
 cr = CutResults("/home/yguan/data/mr3_pa2_s16_results.pickle")
 def generate_dataset(n_tods, n_samples, downsample):
-    x_train, y_train, x_test, y_test = cr.get_data_learning(n_tods, n_samples, downsample=downsample)
+    x_train, y_train, x_test, y_test = cr.get_data_learning(n_tods,
+                                                            n_samples, downsample=downsample)
     unique, counts = np.unique(y_train, return_counts=True)
     print(dict(zip(unique, counts)))
     unique, counts = np.unique(y_test, return_counts=True)
@@ -62,7 +64,7 @@ model.add(MaxPooling2D(pool_size=(1, 2)))
 
 model.add(Conv2D(128, (1, 10), activation='relu'))
 model.add(MaxPooling2D(pool_size=(1, 2)))
-#model.add(Flatten())
+#model.add(Flatten())  # useful when shape is not (1, None, 1)
 model.add(GlobalMaxPooling2D()) # try to fix the flatten problem with GlobalMaxPooling2D
 model.add(Dropout(0.25))
 
@@ -97,7 +99,7 @@ prediction = model.predict(np.array(x_test))
 print(np.hstack([prediction, y_test]))
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
-model.save('my_model.h5')
+# model.save('my_model.h5')
 plt.plot(range(1, epochs+1), history.acc)
 plt.xlabel('Epochs')
 plt.ylabel('Accuracy')
