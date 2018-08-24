@@ -20,7 +20,7 @@ n_repeat = 1 # number of repeats
 input_shape = (1, None, 1) # test varaible input size
 
 # Retrieve data from api
-cr = CutResults("/home/yguan/data/mr3_pa2_s16_results.pickle")
+cr = CutResults("mr3_pa2_s16_results.pickle")
 def generate_dataset(n_tods, n_samples, downsample):
     x_train, y_train, x_test, y_test = cr.get_data_learning(n_tods,
                                                             n_samples, downsample=downsample)
