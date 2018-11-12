@@ -10,21 +10,24 @@ import matplotlib
 # matplotlib.use('TkAgg')
 
 ####### GLOBAL IMPORTS #######
+
+# Pickle import based on Python version
 import sys
-if sys.version_info[0] == 3:
+if sys.version_info[0] >= 3:
     import _pickle as cPickle
 else:
     import cPickle
 
-
-import _pickle as cPickle
 # import moby2
 # from moby2.instruments import actpol
 import numpy as np
 from matplotlib import pyplot as plt
+##############################
 
 ####### GLOBAL VARIABLES #######
 DEPOT = '/data/actpol/depot'
+CUTS_TAG = 'mr3c_pa3_f090_s16'
+################################
 
 
 # import train and test TOD lists
