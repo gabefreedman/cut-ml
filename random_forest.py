@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Sun Nov 11 19:49:07 2018
 
-@author: Gabe Freedman
-"""
 
 # Change matplotlib back-end for XMing capability
 import matplotlib
 # matplotlib.use('TkAgg')
-
-####### GLOBAL IMPORTS #######
+from matplotlib import pyplot as plt
 
 # Pickle import based on Python version
 import sys
@@ -18,31 +13,19 @@ if sys.version_info[0] >= 3:
 else:
     import cPickle
 
-# import moby2
-# from moby2.instruments import actpol
 import numpy as np
 import random
 import pandas as pd
-from matplotlib import pyplot as plt
-
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-##############################
+# import moby2
+# from moby2.instruments import actpol
 
 ####### GLOBAL VARIABLES #######
 DEPOT = '/data/actpol/depot'
 CUTS_TAG = 'mr3c_pa3_f090_s16'
 ################################
-
-
-# import train and test TOD lists
-train_list = np.loadtxt(r'./data/2016_ar3_train.txt', dtype=str)
-test_list = np.loadtxt(r'./data/2016_ar3_test.txt', dtype=str)
-
-# Load pickle file contents
-with open(r'./data/mr3_pa2_s16_results.pickle', 'rb') as f:
-    data = cPickle.load(f, encoding='latin1')
 
 def generate_test_train_tods(tod_names):
     
@@ -54,17 +37,6 @@ def generate_test_train_tods(tod_names):
     test_list = subset[80:]
     return train_list, test_list
 
-train_list, test_list = generate_test_train_tods(data['name'])
-
-# Generate list of indices corresponding to train/test TODs
-train_ind = [data['name'].index(tod) for tod in train_list]
-test_ind = [data['name'].index(tod) for tod in test_list]
-
-pckl_params = ['jumpDark', 'corrLive', 'rmsLive', 'kurtLive', 
-               'normDark', 'skewLive', 'DELive', 'jumpLive', 'gainDark', 'corrDark', 'sel']
-
-small_dct = {param: data[param] for param in pckl_params}
-
 def make_dfs(d, tod_list, tod_ind):
     
     df_list = []
@@ -75,10 +47,6 @@ def make_dfs(d, tod_list, tod_ind):
     
     df = pd.concat(df_list)
     return df
-
-train_df = make_dfs(small_dct, train_list, train_ind)
-test_df = make_dfs(small_dct, test_list, test_ind)
-
 
 def split_features_labels(train,test):
     
@@ -94,31 +62,59 @@ def split_features_labels(train,test):
     
     return x_train, x_test, y_train, y_test
 
-x_train, x_test, y_train, y_test = split_features_labels(train_df, test_df)
+def main():
+    
+    # import train and test TOD lists
+    train_list = np.loadtxt(r'./data/2016_ar3_train.txt', dtype=str)
+    test_list = np.loadtxt(r'./data/2016_ar3_test.txt', dtype=str)
 
+    # Load pickle file contents
+    with open(r'./data/mr3_pa2_s16_results.pickle', 'rb') as f:
+        data = cPickle.load(f, encoding='latin1')
 
-regressor = RandomForestClassifier(n_estimators=50, random_state=0)  
-regressor.fit(x_train, y_train)  
-y_pred = regressor.predict(x_test)
+    # Generate list of indices corresponding to train/test TODs
+    train_ind = [data['name'].index(tod) for tod in train_list]
+    test_ind = [data['name'].index(tod) for tod in test_list]
 
-tp=0
-fp=0
-fn=0
-tn=0
-for i in range(len(y_pred)):
-    if y_test[i]==y_pred[i]==1:
-           tp += 1
-    if y_pred[i]==1 and y_test[i]!=y_pred[i]:
-           fp += 1
-    if y_test[i]==y_pred[i]==0:
-           tn += 1
-    if y_pred[i]==0 and y_test[i]!=y_pred[i]:
-           fn += 1
-           
-total = tp+fp+fn+tn
-print('True Positive: ' +str(tp) + ', ' + str(tp/total))
-print('False Positive: ' +str(fp) + ', ' + str(fp/total))
-print('False Negative: ' +str(fn) + ', ' + str(fn/total))
-print('True Negative: ' +str(tn) + ', ' + str(tn/total))
-print(classification_report(y_test,y_pred))  
-print(accuracy_score(y_test, y_pred))
+    # Features for model come from pickle file
+    pckl_params = ['jumpDark', 'corrLive', 'rmsLive', 'kurtLive', 
+                   'normDark', 'skewLive', 'DELive', 'jumpLive', 'gainDark', 'corrDark', 'sel']
+
+    # Extract selected feature arrays from pickle file dictionary
+    small_dct = {param: data[param] for param in pckl_params}
+    
+    train_list, test_list = generate_test_train_tods(data['name'])
+    train_df = make_dfs(small_dct, train_list, train_ind)
+    test_df = make_dfs(small_dct, test_list, test_ind)
+
+    
+    x_train, x_test, y_train, y_test = split_features_labels(train_df, test_df)
+    
+    regressor = RandomForestClassifier(n_estimators=50, random_state=0)  
+    regressor.fit(x_train, y_train)  
+    y_pred = regressor.predict(x_test)
+
+    tp=0
+    fp=0
+    fn=0
+    tn=0
+    for i in range(len(y_pred)):
+        if y_test[i]==y_pred[i]==1:
+               tp += 1
+        if y_pred[i]==1 and y_test[i]!=y_pred[i]:
+               fp += 1
+        if y_test[i]==y_pred[i]==0:
+               tn += 1
+        if y_pred[i]==0 and y_test[i]!=y_pred[i]:
+               fn += 1
+
+    total = tp+fp+fn+tn
+    print('True Positive: ' +str(tp) + ', ' + str(tp/total))
+    print('False Positive: ' +str(fp) + ', ' + str(fp/total))
+    print('False Negative: ' +str(fn) + ', ' + str(fn/total))
+    print('True Negative: ' +str(tn) + ', ' + str(tn/total))
+    print(classification_report(y_test,y_pred))  
+    print(accuracy_score(y_test, y_pred))
+
+if __name__ == '__main__':
+    main()
