@@ -18,7 +18,7 @@ import random
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import classification_report, accuracy_score
 # import moby2
 # from moby2.instruments import actpol
 
@@ -26,6 +26,7 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 DEPOT = '/data/actpol/depot'
 CUTS_TAG = 'mr3c_pa3_f090_s16'
 ################################
+
 
 def generate_test_train_tods(tod_names):
     
@@ -62,31 +63,38 @@ def split_features_labels(train,test):
     
     return x_train, x_test, y_train, y_test
 
-def main():
+def random_forest(tod_train_lst, tod_test_lst, pckl_file):
     
-    # import train and test TOD lists
-    train_list = np.loadtxt(r'./data/2016_ar3_train.txt', dtype=str)
-    test_list = np.loadtxt(r'./data/2016_ar3_test.txt', dtype=str)
-
     # Load pickle file contents
-    with open(r'./data/mr3_pa2_s16_results.pickle', 'rb') as f:
+    with open(pckl_file, 'rb') as f:
         data = cPickle.load(f, encoding='latin1')
-
+    
+    if not tod_train_lst or not tod_test_lst:
+        tod_train_lst, tod_test_lst = generate_test_train_tods(data['name'])
+ 
     # Generate list of indices corresponding to train/test TODs
-    train_ind = [data['name'].index(tod) for tod in train_list]
-    test_ind = [data['name'].index(tod) for tod in test_list]
+    train_ind = [data['name'].index(tod) for tod in tod_train_lst]
+    test_ind = [data['name'].index(tod) for tod in tod_test_lst]
 
     # Features for model come from pickle file
-    pckl_params = ['jumpDark', 'corrLive', 'rmsLive', 'kurtLive', 
-                   'normDark', 'skewLive', 'DELive', 'jumpLive', 'gainDark', 'corrDark', 'sel']
+    pckl_params = ['corrLive',  'rmsLive',  'kurtLive',  'DELive', 'MFELive', 
+                   'skewLive', 'normLive', 'darkRatioLive',   'jumpLive', 
+                   'gainLive', 'sel']
 
     # Extract selected feature arrays from pickle file dictionary
     small_dct = {param: data[param] for param in pckl_params}
     
-    train_list, test_list = generate_test_train_tods(data['name'])
-    train_df = make_dfs(small_dct, train_list, train_ind)
-    test_df = make_dfs(small_dct, test_list, test_ind)
-
+    train_df = make_dfs(small_dct, tod_train_lst, train_ind)
+    test_df = make_dfs(small_dct, tod_test_lst, test_ind)
+    
+    train_df = train_df.dropna()
+    test_df = test_df.dropna()
+    for col in train_df:
+        if train_df[col].dtype=='float32':
+            train_df[col] = train_df[col].astype('float64')
+    for col in test_df:
+        if test_df[col].dtype=='float32':
+            test_df[col] = test_df[col].astype('float64')
     
     x_train, x_test, y_train, y_test = split_features_labels(train_df, test_df)
     
@@ -117,4 +125,22 @@ def main():
     print(accuracy_score(y_test, y_pred))
 
 if __name__ == '__main__':
-    main()
+    
+    # random_forest.py run from command line with file path arguments
+    if len(sys.argv) == 4:
+        # Set parameters from sys.argv for random forest input
+        train_lst = np.loadtxt(sys.argv[1], dtype=str)
+        test_lst = np.loadtxt(sys.argv[2], dtype=str)
+        pckl_file = sys.argv[3]
+    # random_forest.py run from commandline w/o additional arguments
+    elif len(sys.argv) == 1:
+        # Import existing data files
+        train_lst = None
+        test_lst = None
+        pckl_file = '../data/mr3_pa2_s16_results.pickle'
+    else:
+        raise ValueError('3 arguments required for random_forest.py: ' + 
+                         str(len(sys.argv)-1) + ' provided.')
+    
+    # Run random forest model with given inputs
+    random_forest(train_lst, test_lst, pckl_file)
