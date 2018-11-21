@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
-# Change matplotlib back-end for XMing capability
-import matplotlib
-# matplotlib.use('TkAgg')
-from matplotlib import pyplot as plt
-
 # Pickle import based on Python version
 import sys
 if sys.version_info[0] >= 3:
@@ -29,103 +23,103 @@ CUTS_TAG = 'mr3c_pa3_f090_s16'
 
 
 def generate_test_train_tods(tod_names):
-    
+
     subset = random.sample(tod_names, 100)
-    
+
     random.shuffle(subset)
-    
+
     train_list = subset[:80]
     test_list = subset[80:]
     return train_list, test_list
 
 def make_dfs(d, tod_list, tod_ind):
-    
+
     df_list = []
-    
+
     for i in range(len(tod_list)):
-        td = {k:d[k][:,tod_ind[i]] for k in d.keys()}
+        td = {k:d[k][:, tod_ind[i]] for k in d.keys()}
         df_list.append(pd.DataFrame(td))
-    
+
     df = pd.concat(df_list)
     return df
 
-def split_features_labels(train,test):
-    
+def split_features_labels(train, test):
+
     x_train = train.drop('sel', axis=1)
     x_test = test.drop('sel', axis=1)
-    
+
     sc = StandardScaler()
     x_train = sc.fit_transform(x_train)
     x_test = sc.fit_transform(x_test)
-    
+
     y_train = np.array(train['sel'])
     y_test = np.array(test['sel'])
-    
+
     return x_train, x_test, y_train, y_test
 
-def random_forest(tod_train_lst, tod_test_lst, pckl_file):
-    
+def random_forest(pckl_file, tod_train=None, tod_test=None):
+
     # Load pickle file contents
     with open(pckl_file, 'rb') as f:
         data = cPickle.load(f, encoding='latin1')
-    
-    if not tod_train_lst or not tod_test_lst:
-        tod_train_lst, tod_test_lst = generate_test_train_tods(data['name'])
- 
+
+    if not tod_train or not tod_test:
+        tod_train, tod_test = generate_test_train_tods(data['name'])
+
     # Generate list of indices corresponding to train/test TODs
-    train_ind = [data['name'].index(tod) for tod in tod_train_lst]
-    test_ind = [data['name'].index(tod) for tod in tod_test_lst]
+    train_ind = [data['name'].index(tod) for tod in tod_train]
+    test_ind = [data['name'].index(tod) for tod in tod_test]
 
     # Features for model come from pickle file
-    pckl_params = ['corrLive',  'rmsLive',  'kurtLive',  'DELive', 'MFELive', 
-                   'skewLive', 'normLive', 'darkRatioLive',   'jumpLive', 
+    pckl_params = ['corrLive', 'rmsLive', 'kurtLive', 'DELive', 'MFELive', 
+                   'skewLive', 'normLive', 'darkRatioLive', 'jumpLive', 
                    'gainLive', 'sel']
 
     # Extract selected feature arrays from pickle file dictionary
     small_dct = {param: data[param] for param in pckl_params}
-    
-    train_df = make_dfs(small_dct, tod_train_lst, train_ind)
-    test_df = make_dfs(small_dct, tod_test_lst, test_ind)
-    
+
+    train_df = make_dfs(small_dct, tod_train, train_ind)
+    test_df = make_dfs(small_dct, tod_test, test_ind)
+
     train_df = train_df.dropna()
     test_df = test_df.dropna()
     for col in train_df:
-        if train_df[col].dtype=='float32':
+        if train_df[col].dtype != 'float64':
             train_df[col] = train_df[col].astype('float64')
     for col in test_df:
-        if test_df[col].dtype=='float32':
+        if test_df[col].dtype != 'float64':
             test_df[col] = test_df[col].astype('float64')
-    
+
     x_train, x_test, y_train, y_test = split_features_labels(train_df, test_df)
-    
-    regressor = RandomForestClassifier(n_estimators=50, random_state=0)  
+
+    regressor = RandomForestClassifier(n_estimators=70, random_state=0)  
     regressor.fit(x_train, y_train)  
     y_pred = regressor.predict(x_test)
 
-    tp=0
-    fp=0
-    fn=0
-    tn=0
+    tp = 0
+    fp = 0
+    fn = 0
+    tn = 0
     for i in range(len(y_pred)):
-        if y_test[i]==y_pred[i]==1:
-               tp += 1
-        if y_pred[i]==1 and y_test[i]!=y_pred[i]:
-               fp += 1
-        if y_test[i]==y_pred[i]==0:
-               tn += 1
-        if y_pred[i]==0 and y_test[i]!=y_pred[i]:
-               fn += 1
+        if y_test[i] == y_pred[i] == 1:
+            tp += 1
+        if y_pred[i] == 1 and y_test[i] != y_pred[i]:
+            fp += 1
+        if y_test[i] == y_pred[i] == 0:
+            tn += 1
+        if y_pred[i] == 0 and y_test[i] != y_pred[i]:
+            fn += 1
 
     total = tp+fp+fn+tn
-    print('True Positive: ' +str(tp) + ', ' + str(tp/total))
-    print('False Positive: ' +str(fp) + ', ' + str(fp/total))
-    print('False Negative: ' +str(fn) + ', ' + str(fn/total))
-    print('True Negative: ' +str(tn) + ', ' + str(tn/total))
-    print(classification_report(y_test,y_pred))  
+    print('True Positive: ' + str(tp) + ', ' + str(tp/total))
+    print('False Positive: ' + str(fp) + ', ' + str(fp/total))
+    print('False Negative: ' + str(fn) + ', ' + str(fn/total))
+    print('True Negative: ' + str(tn) + ', ' + str(tn/total))
+    print(classification_report(y_test, y_pred))  
     print(accuracy_score(y_test, y_pred))
 
 if __name__ == '__main__':
-    
+
     # random_forest.py run from command line with file path arguments
     if len(sys.argv) == 4:
         # Set parameters from sys.argv for random forest input
@@ -140,7 +134,7 @@ if __name__ == '__main__':
         pckl_file = '../data/mr3_pa2_s16_results.pickle'
     else:
         raise ValueError('3 arguments required for random_forest.py: ' + 
-                         str(len(sys.argv)-1) + ' provided.')
-    
+                         str(len(sys.argv) - 1) + ' provided.')
+
     # Run random forest model with given inputs
-    random_forest(train_lst, test_lst, pckl_file)
+    random_forest(pckl_file, train_lst, test_lst)
